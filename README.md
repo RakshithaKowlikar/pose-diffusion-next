@@ -1,50 +1,62 @@
-# PoseDiffusion-Next
+# Human Motion Prediction with Spatio-Temporal Transformers
 
-Lightweight experiments on 3D human-pose forecasting using baseline UNet and Transformer architectures on the AMASS dataset.  
-Work in progress — the next stage will explore diffusion-based and physics-aware models for temporally consistent motion prediction.
-
----
-
-## Overview
-
-This repository explores short-horizon 3D human-pose forecasting through baseline architectures and an early diffusion framework.  
-The primary goal is to build an efficient, interpretable, and lightweight motion-prediction model optimized for limited GPU memory.
-
-Implemented components:
-
-- **UNet** – temporal convolutional baseline for smooth motion prediction  
-- **Transformer** – sequence-to-sequence baseline with positional encoding  
-- **Diffusion framework** – forward/reverse noise scheduling, temporal denoisers, and sampling loop  
-- **TemporalUNet** and **TransformerDenoiser** – denoising modules for diffusion-based forecasting  
-
-Dataset: [AMASS](https://amass.is.tue.mpg.de/) (CMU, KIT, Transitions subsets), represented in **SMPL-H joint coordinates**.  
-Each sequence contains 3-D joint trajectories extracted from motion-capture recordings.
+This repository contains code for short-horizon human motion prediction using PyTorch.  
+The models are trained and evaluated on the AMASS dataset.
 
 ---
 
-## Technical Details
+## What this project does
 
-- **Frameworks:** PyTorch, NumPy, Matplotlib  
-- **Input representation:** SMPL-H joints (22 × 3)  
-- **Forecasting setup:** Given past frames, predict future joint trajectories  
-- **Training objective:** Mean-squared error between predicted and ground-truth joint positions  
-- **Metrics:** Mean Per-Joint Position Error (MPJPE)
+Given a short sequence of past human motion, the model predicts a few future frames.
 
----
+- Past input: 25 frames (1 second)
+- Future prediction: 5 frames (200 ms)
+- Output: joint rotations + root translation
 
-## Next Steps
-
-- Integrate a full diffusion-based denoising model that includes flow matching 
-- Add physics constraints (bone-length consistency, velocity smoothness)  
-- Evaluate long-horizon stability and multi-modal future sampling  
-- Develop lightweight training strategies for low-VRAM hardware (RTX 4050)
+The main goal is to compare a transformer-based model with a GRU baseline under the same setup.
 
 ---
 
-## Acknowledgements
+## Models
 
-- **Dataset:** AMASS  
-- **Body model:** SMPL-H by MPI-IS  
-- **Libraries:** PyTorch, PyTorch3D, NumPy, Matplotlib  
+### Spatio-Temporal Transformer
+
+- Transformer model with separate temporal and spatial attention
+- Temporal attention is applied per joint
+- Spatial attention is constrained using the SMPL skeleton
+- Uses 6D rotation representation
+- Predicts future frames autoregressively
+![ST-Transformer Predictions](assets/st_transformer_pred.png)
+
+### GRU Baseline
+
+- GRU encoder over the input sequence
+- Separate decoders for pose and root translation
+- Uses the same data representation and loss as the transformer
+![GRU Baseline Predictions](assets/gru_pred.png)
 
 ---
+## Experimental Setup
+
+- Dataset: AMASS
+- Input frames: 25
+- Output frames: 5
+- Joints: 22 (SMPL)
+- Training epochs: 20 for both models
+- Metrics: MPJPE (mm), FDE (mm)
+
+Both models are trained under identical optimization settings for a fair comparison.
+
+---
+
+| Model           | MPJPE (mm) |
+|-----------------|------------|
+| GRU Baseline    | ~104       |
+| ST-Transformer  | ~96        |
+
+
+## Acknowledgments 
+- AMASS dataset for motion capture data
+- SMPL body model for skeletal representation
+- This project was inspired by the Motion Transformer work from ETH Zurich:
+  https://ait.ethz.ch/motiontransformer
