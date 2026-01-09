@@ -11,37 +11,39 @@ split_ratio = {"train": 0.7, "val": 0.15, "test": 0.15}
 subject_to_files = defaultdict(list)
 
 def extract_subject_id(path: Path) -> str:
-    name = path.name.replace("_poses", "").replace(".npz", "")
-    parent = path.parent.name  
-    if parent.isdigit():
-        return parent
-
-    if name.startswith("CMU_"):
-        parts = name.split("_")
-        if len(parts) > 1 and parts[1].isdigit():
-            return parts[1]
-
-    if name.startswith("KIT_"):
-        parts = name.split("_")
-        for part in parts:
-            if part.isdigit():
-                return part
-
-    if name.startswith("Transitions_mocap_"):
-        parts = name.split("_")
-        if len(parts) > 2:
-            return parts[2]
-
-    if "subject" in name:
-        chunks = name.split("_")
-        for chunk in chunks:
-            if "subject" in chunk and any(ch.isdigit() for ch in chunk):
-                return "".join(ch for ch in chunk if ch.isdigit())
-
+    name = path.stem
     parts = name.split("_")
-    if parts[-1].isdigit():
-        return "_".join(parts[:-1])
-
+    
+    if len(parts) < 2:
+        return name
+    
+    dataset = parts[0]
+    
+    if dataset == "CMU" and len(parts) >= 2 and parts[1].isdigit():
+        return f"CMU_{parts[1]}"
+    
+    elif dataset == "Transitions" and len(parts) >= 3 and parts[1] == "mocap":
+        return f"Transitions_{parts[2]}"
+    
+    elif dataset == "KIT":
+        action_parts = parts[1:]
+        if not action_parts:
+            return name
+        
+        last_part = action_parts[-1]
+        if last_part.isdigit():
+            action_parts = action_parts[:-1]
+        else:
+            cleaned = ''.join(c for c in last_part if not c.isdigit())
+            if cleaned and cleaned != last_part:
+                action_parts[-1] = cleaned
+        
+        if not action_parts:
+            return name
+        
+        action = "_".join(action_parts)
+        return f"KIT_{action}"
+    
     return name
 
 for npz_path in NPZ_DIR.glob("*.npz"):
@@ -49,7 +51,7 @@ for npz_path in NPZ_DIR.glob("*.npz"):
         subject = extract_subject_id(npz_path)
         subject_to_files[subject].append(npz_path)
     except Exception as e:
-        print(f"[ERROR] Failed on {npz_path.name}: {e}")
+        print(f"Failed on {npz_path.name}: {e}")
 
 subjects = sorted(subject_to_files.keys())
 random.shuffle(subjects)
